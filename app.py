@@ -19,7 +19,7 @@ class AutoFilm:
 
         # GUI --------------------------------------------------------------------
         self.root = root
-        self.root.title("AutoFilm")
+        self.root.title("Atrvf")
 
         self.dm = DataManager(root)
 
@@ -44,12 +44,12 @@ class AutoFilm:
         self.bc = BrowserController(
             executable_path=self.executable_path,
             chrome_profile_path=self.chrome_profile_path,
-            download_path=self.voice_folder_path,
             gl_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
         )
         self.pass_vbee = "1abcdxyz2"
 
     async def create_caption(self):
+        await self.bc.delete_all_profiles()
         await self.bc.create_gl_profile(auto_proxy=False)
         await self.bc.connect_gl_profile(self.bc.gl_profile_id)
         # await self.bc.connect_gl_profile("65ec8440f4dbc027cfd0a117")
@@ -60,7 +60,6 @@ class AutoFilm:
         await self.sign_in_vbee()
 
         # await self.bc.gl_stop()
-        # await self.bc.delete_gl_profile(self.bc.gl_profile_id)
 
     async def go_to_sign_in_page(self):
         await self.page.goto(
@@ -127,6 +126,14 @@ class AutoFilm:
             '(element) => element.getAttribute("href")', confirm_btn
         )
         self.page = await self.browser.newPage()
+        await self.page._client.send(
+            "Page.setDownloadBehavior",
+            {
+                "behavior": "allow",
+                "auto_downloads": 1,
+                "downloadPath": self.voice_folder_path,
+            },
+        )
         await self.page.goto(confirm_href)
 
     async def setup_vbee(self):
@@ -136,49 +143,116 @@ class AutoFilm:
         continue_btn = await self.page.waitForSelector("div.dialog-action > button")
         await continue_btn.click()
 
-        not_show_again = await self.page.waitForSelector(
+        dont_show_again_btn = await self.page.waitForSelector(
             "div.not-show-again > label > span > input"
         )
-        await not_show_again.click()
+        await dont_show_again_btn.click()
+        await sleep(0.5)
 
         close_btn = await self.page.waitForSelector(
             "div.MuiDialogContent-root > button"
         )
-
         await close_btn.click()
+        await sleep(0.5)
+
         back_btn = await self.page.waitForSelector(
             "#react-joyride-step-0 > div > div > div > div > button > div > div"
         )
         await back_btn.click()
+        await sleep(0.5)
 
-        ignore_text = await self.page.waitForSelector(
+        skip_hightlight_to_listen = await self.page.waitForSelector(
             "p.MuiTypography-root.MuiTypography-body1.ignore-text"
         )
+        await skip_hightlight_to_listen.click()
+        await sleep(0.5)
 
-        await ignore_text.click()
+        # Click choose voice
+        choose_voice_btn = await self.page.waitForSelector(
+            ".group-adjust-voice > button"
+        )
+        await choose_voice_btn.click()
+        await sleep(1)
+
+        # Click vn language checkbox
+        await self.page.evaluate(
+            "document.querySelector(\"input[value='vi-VN']\").click();"
+        )
+        await sleep(1)
+
+        # Click first voice
+        first_voice = await self.page.waitForSelector(".voice-list > button ")
+        await first_voice.click()
+        await sleep(0.5)
+
+        # Adjust speed
+        speed_input = await self.page.waitForSelector("[id='mui-8']")
+        await speed_input.click()
+        await speed_input.type("1.1")
+        await self.page.keyboard.press("Enter")
+        await sleep(0.5)
 
         enter_text_here = await self.page.waitForSelector(
             "#enter-text-here > div.editor-wrapper > div > div.DraftEditor-editorContainer > div > div"
         )
-
         await enter_text_here.click()
+        await sleep(0.5)
 
         pyperclip.copy("Đây là câu thoại mẫu")
-        # await self.page.keyboard.type("Đây là câu thoại mẫu")
-
         await self.page.keyboard.down("Control")
         await self.page.keyboard.press("KeyV")
         await self.page.keyboard.up("Control")
 
-        convert_btn = await self.page.waitForSelector(".request-info > button")
-
-        await convert_btn.click()
+        generate_btn = await self.page.waitForSelector(".request-info > button")
+        await generate_btn.click()
+        await sleep(0.5)
 
         close_ad_button = await self.page.waitForSelector(
             ".dialog-content > h2 > button"
         )
-
         await close_ad_button.click()
+        await sleep(0.5)
+
+        await self.page.waitForSelector(".request-info > .MuiTypography-body1")
+        await sleep(0.5)
+
+        # If find expand icon then click
+        expand_icon = await self.page.querySelector(
+            'button > [data-testid="KeyboardArrowDownIcon"]'
+        )
+        if expand_icon:
+            await expand_icon.click()
+            await sleep(0.5)
+        else:
+            pass
+
+        # Click checkbox of head row to select voices
+        head_checkbox = await self.page.querySelector(
+            ".MuiCheckbox-root > .PrivateSwitchBase-input"
+        )
+        await head_checkbox.click()
+        await sleep(0.5)
+
+        # Click download selected
+        download_button = await self.page.waitForSelector(
+            ".MuiTableCell-root .download-button"
+        )
+        await download_button.click()
+        await sleep(0.5)
+
+        # Click delete selected
+        delete_selected_btn = await self.page.querySelector(
+            ".MuiTableCell-root .delete-button"
+        )
+        await delete_selected_btn.click()
+        await sleep(0.5)
+
+        # Click confirm delete yes
+        confirm_delete_yes_btn = await self.page.querySelector(
+            ".content > div > button.MuiButton-containedPrimary"
+        )
+        await confirm_delete_yes_btn.click()
+        await sleep(0.5)
 
     async def sign_up_vbee(self):
         await self.page.goto("https://studio.vbee.vn/studio/text-to-speech")

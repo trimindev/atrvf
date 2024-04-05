@@ -5,6 +5,7 @@ import pyperclip
 from pyautogui import hotkey, press
 from time import time
 from gologin import GoLogin
+import requests, json
 
 
 def copy_paste(text, sleep=0.2):
@@ -192,6 +193,12 @@ class BrowserController:
         await page.keyboard.down("Control")
         await page.keyboard.press("KeyV")
         await page.keyboard.up("Control")
+
+    async def delete_all_profiles(self):
+        profiles = self.gl.profiles()["profiles"]
+        for profile in profiles:
+            profile_id = profile["id"]
+            self.gl.delete(profile_id)
 
 
 async def main():
