@@ -51,7 +51,6 @@ class AutoFilm:
         await self.bc.delete_all_profiles()
         await self.bc.create_gl_profile(auto_proxy=False)
         await self.bc.connect_gl_profile(self.bc.gl_profile_id)
-        # await self.bc.connect_gl_profile("65ec8440f4dbc027cfd0a117")
 
         self.page = self.bc.page
         self.browser = self.bc.browser
