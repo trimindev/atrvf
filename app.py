@@ -1,5 +1,6 @@
 from tkinter import Tk
 from lib.data_manager import DataManager
+from lib.gologin_controller import GologinController
 from lib.browser_controller import BrowserController
 from lib.video_utils import *
 from asyncio import sleep
@@ -22,9 +23,6 @@ class AutoFilm:
 
         self.dm = DataManager(root)
 
-        self.dm.create_entry("Executable Path:", "executable_path", isBrowse=True)
-        self.dm.create_entry("Profile Path:", "chrome_profile_path", isBrowse=True)
-
         self.dm.create_entry("Caption Path:", "caption_path", isBrowse=True)
         self.dm.create_entry(
             "Voice Folder Path:", "voice_folder_path", isFolder=True, isBrowse=True
@@ -35,29 +33,31 @@ class AutoFilm:
         self.dm.create_button("Create Video", self.auto_film, self.load_data)
 
     def load_data(self):
-        self.executable_path = self.dm.get_entry_data("executable_path")
-        self.chrome_profile_path = self.dm.get_entry_data("chrome_profile_path")
         self.caption_path = self.dm.get_entry_data("caption_path")
         self.voice_folder_path = self.dm.get_entry_data("voice_folder_path")
         self.video_path = self.dm.get_entry_data("video_path")
-        self.bc = BrowserController(
-            executable_path=self.executable_path,
-            chrome_profile_path=self.chrome_profile_path,
-            gl_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
-        )
         self.pass_vbee = "1abcdxyz2"
 
+        self.gc = GologinController(
+            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
+        )
+
     async def create_caption(self):
-        await self.bc.delete_all_profiles()
-        await self.bc.create_gl_profile(auto_proxy=False)
-        await self.bc.connect_gl_profile(self.bc.gl_profile_id)
+        await self.gc.delete_all_profiles()
+        await self.gc.create_gl_profile(auto_proxy=False)
+        await self.gc.connect_gl_profile(self.gc.gl_profile_id)
 
-        self.page = self.bc.page
-        self.browser = self.bc.browser
+        self.page = self.gc.page
+        self.browser = self.gc.browser
 
-        await self.sign_in_vbee()
+        await self.go_to_sign_in_page()
+        await self.fill_sign_in()
+        await self.confirm_sign_in()
+        await self.setup_vbee()
 
-        # await self.bc.gl_stop()
+        await sleep(3000)
+
+        # await self.gc.gl_stop()
 
     async def go_to_sign_in_page(self):
         await self.page.goto(
@@ -87,7 +87,7 @@ class AutoFilm:
         await sleep(1)
 
     async def fill_sign_in(self):
-        self.page = await self.bc.goto_page_with_url_containing("https://temp-mail.org")
+        self.page = await self.gc.goto_page_with_url_containing("https://temp-mail.org")
 
         email = None
         while email is None or not is_valid_email(email):
@@ -98,7 +98,7 @@ class AutoFilm:
         if not email:
             return False
 
-        self.page = await self.bc.goto_page_with_url_containing(
+        self.page = await self.gc.goto_page_with_url_containing(
             "https://accounts.vbee.ai/"
         )
 
@@ -110,7 +110,7 @@ class AutoFilm:
         await login_btn.click()
 
     async def confirm_sign_in(self):
-        self.page = await self.bc.goto_page_with_url_containing("https://temp-mail.org")
+        self.page = await self.gc.goto_page_with_url_containing("https://temp-mail.org")
 
         link_confirm = await self.page.waitForSelector(
             "div.inbox-dataList > ul > li:nth-child(2) > div:nth-child(1) > a"
@@ -251,21 +251,6 @@ class AutoFilm:
         )
         await confirm_delete_yes_btn.click()
         await sleep(0.5)
-
-    async def sign_in_vbee(self):
-        await self.go_to_sign_in_page()
-        await self.fill_sign_in()
-        await self.confirm_sign_in()
-        await self.setup_vbee()
-
-        await sleep(3000)
-        return True
-
-    def auto_film(self):
-        # merge_audio_with_video(
-        #     self.voice_folder_path, self.video_path, self.caption_path
-        # )
-        return
 
 
 def main():
