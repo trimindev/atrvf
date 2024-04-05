@@ -1,8 +1,5 @@
 from pyppeteer import launch
-import cv2
-from asyncio import run, sleep
-import pyperclip
-from time import time
+from asyncio import run
 
 
 class BrowserController:

@@ -55,3 +55,14 @@ async def pp_copy_paste(page, text):
     await page.keyboard.down("Control")
     await page.keyboard.press("KeyV")
     await page.keyboard.up("Control")
+
+
+async def allow_auto_download(page, downloadPath):
+    await page._client.send(
+        "Page.setDownloadBehavior",
+        {
+            "behavior": "allow",
+            "auto_downloads": 1,
+            "downloadPath": downloadPath,
+        },
+    )
