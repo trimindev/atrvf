@@ -4,6 +4,14 @@ from lib.browser_controller import BrowserController
 from lib.video_utils import *
 from multiprocessing import Process
 from asyncio import sleep
+import pyperclip
+import re
+import pyperclip
+
+
+def is_valid_email(email):
+    pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+    return bool(re.match(pattern, email))
 
 
 class AutoFilm:
@@ -39,44 +47,168 @@ class AutoFilm:
             download_path=self.voice_folder_path,
             gl_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
         )
+        self.pass_vbee = "1abcdxyz2"
 
     async def create_caption(self):
-        await self.bc.create_gl_profile()
+        await self.bc.create_gl_profile(auto_proxy=False)
         await self.bc.connect_gl_profile(self.bc.gl_profile_id)
+        # await self.bc.connect_gl_profile("65ec8440f4dbc027cfd0a117")
+
         self.page = self.bc.page
         self.browser = self.bc.browser
 
         await self.sign_in_vbee()
 
-        await self.bc.gl_stop()
-        await self.bc.delete_gl_profile(self.bc.gl_profile_id)
+        # await self.bc.gl_stop()
+        # await self.bc.delete_gl_profile(self.bc.gl_profile_id)
 
-    async def sign_in_vbee(self):
+    async def go_to_sign_in_page(self):
+        await self.page.goto(
+            "https://temp-mail.org/vi", {"waitUntil": "domcontentloaded"}
+        )
+
+        self.page = await self.browser.newPage()
+
         await self.page.goto("https://studio.vbee.vn/studio/text-to-speech")
+
+        await sleep(2)
 
         button = await self.page.waitForSelector(
             "#__next > div > div:nth-child(1) > div > div > div.flex.flex-row-reverse.mobile-breakpoint\:flex-row.flex-grow.gap-4 > div.flex.items-start.justify-end.mobile-breakpoint\:justify-center.flex-grow.mobile-breakpoint\:flex-grow-0.gap-2 > div.my-auto.block > div > button"
         )
 
-        await button.click()
+        while True:
+            try:
+                await button.click()
+                ai_studio = await self.page.waitForSelector(
+                    "div.absolute#dropdown > div > button:nth-child(2)", timeout=2000
+                )
+                await ai_studio.click()
+                break
+            except:
+                pass
+        await sleep(1)
 
-        await self.page.waitForSelector("div.absolute#dropdown")
+    async def fill_sign_in(self):
+        self.page = await self.bc.goto_page_with_url_containing("https://temp-mail.org")
 
-        button = await self.page.waitForSelector(
-            "div.absolute#dropdown > div > button:nth-child(2)"
+        email = None
+        while email is None or not is_valid_email(email):
+            email = await self.page.evaluate('document.getElementById("mail").value')
+            if email is None:
+                await sleep(1)
+
+        if not email:
+            return False
+
+        self.page = await self.bc.goto_page_with_url_containing(
+            "https://accounts.vbee.ai/"
         )
 
-        if button:
-            await button.click()
-            await sleep(1)
+        await self.page.type("#email", email)
+        await self.page.type("#password", self.pass_vbee)
+        await self.page.type("#passwordConfirm", self.pass_vbee)
 
-        pages = await self.browser.pages()
+        login_btn = await self.page.waitForSelector('button[name="login"]')
+        await login_btn.click()
 
-        for page in pages:
-            if "https://accounts.vbee.ai/" in page.url:
-                self.page = page
-                break
+    async def confirm_sign_in(self):
+        self.page = await self.bc.goto_page_with_url_containing("https://temp-mail.org")
 
+        link_confirm = await self.page.waitForSelector(
+            "div.inbox-dataList > ul > li:nth-child(2) > div:nth-child(1) > a"
+        )
+        await link_confirm.click()
+
+        confirm_btn = await self.page.waitForSelector(
+            "div.inbox-data-content > div.inbox-data-content-intro > div > div > div:nth-child(2) > a"
+        )
+        confirm_href = await self.page.evaluate(
+            '(element) => element.getAttribute("href")', confirm_btn
+        )
+        self.page = await self.browser.newPage()
+        await self.page.goto(confirm_href)
+
+    async def setup_vbee(self):
+        checkbox = await self.page.waitForSelector("div.dialog-checkbox > span > input")
+        await checkbox.click()
+
+        continue_btn = await self.page.waitForSelector("div.dialog-action > button")
+        await continue_btn.click()
+
+        not_show_again = await self.page.waitForSelector(
+            "div.not-show-again > label > span > input"
+        )
+        await not_show_again.click()
+
+        close_btn = await self.page.waitForSelector(
+            "div.MuiDialogContent-root > button"
+        )
+
+        await close_btn.click()
+        back_btn = await self.page.waitForSelector(
+            "#react-joyride-step-0 > div > div > div > div > button > div > div"
+        )
+        await back_btn.click()
+
+        ignore_text = await self.page.waitForSelector(
+            "p.MuiTypography-root.MuiTypography-body1.ignore-text"
+        )
+
+        await ignore_text.click()
+
+        enter_text_here = await self.page.waitForSelector(
+            "#enter-text-here > div.editor-wrapper > div > div.DraftEditor-editorContainer > div > div"
+        )
+
+        await enter_text_here.click()
+
+        pyperclip.copy("Đây là câu thoại mẫu")
+        # await self.page.keyboard.type("Đây là câu thoại mẫu")
+
+        await self.page.keyboard.down("Control")
+        await self.page.keyboard.press("KeyV")
+        await self.page.keyboard.up("Control")
+
+        convert_btn = await self.page.waitForSelector(".request-info > button")
+
+        await convert_btn.click()
+
+        close_ad_button = await self.page.waitForSelector(
+            ".dialog-content > h2 > button"
+        )
+
+        await close_ad_button.click()
+
+    async def sign_up_vbee(self):
+        await self.page.goto("https://studio.vbee.vn/studio/text-to-speech")
+
+        sign_up_btn = await self.page.waitForSelector(
+            'div.mobile-breakpoint\:flex > div > div[role="button"]'
+        )
+
+        await sign_up_btn.click()
+
+        ai_voice_studio = await self.page.waitForSelector(
+            "#dropdown.absolute > div > button:nth-child(2)"
+        )
+
+        await ai_voice_studio.click()
+
+        self.page = await self.bc.goto_page_with_url_containing(
+            "https://accounts.vbee.ai/"
+        )
+
+        self.page.type("#username", "vegih76838@comsb.com")
+        self.page.type("#password", self.pass_vbee)
+
+    async def sign_in_vbee(self):
+        await self.go_to_sign_in_page()
+        await self.fill_sign_in()
+        await self.confirm_sign_in()
+        await self.setup_vbee()
+
+        await sleep(3000)
         return True
 
     def auto_film(self):

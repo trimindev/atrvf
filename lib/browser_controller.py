@@ -67,10 +67,30 @@ class BrowserController:
         self.page = await self.browser.newPage()
         await self.gl.normalizePageView(self.page)
 
-    async def create_gl_profile(self):
+    async def create_gl_profile(self, auto_proxy=False, proxy=False):
+
+        if auto_proxy and not proxy:
+            proxy_config = {
+                "mode": "gologin",
+                "autoProxyRegion": "us",
+            }
+
+        if not auto_proxy:
+            proxy_config = {
+                "mode": "none",
+            }
+
+        if proxy:
+            proxy_config = {
+                "host": proxy.host,
+                "port": proxy.port,
+                "username": proxy.username,
+                "password": proxy.password,
+            }
+
         self.gl_profile_id = self.gl.create(
             {
-                "name": "profile_mac",
+                "name": "demo",
                 "os": "mac",
                 "navigator": {
                     "language": "en-US",
@@ -78,15 +98,7 @@ class BrowserController:
                     "resolution": "1024x960",
                     "platform": "mac",
                 },
-                "proxy": {
-                    "mode": "none"
-                    # "mode": "gologin",
-                    # "autoProxyRegion": "us",
-                    # "host": '',
-                    # "port": '',
-                    # "username": '',
-                    # "password": '',
-                },
+                "proxy": proxy_config,
                 "webRTC": {
                     "mode": "alerted",
                     "enabled": True,
@@ -165,6 +177,21 @@ class BrowserController:
                 return center_x, center_y
 
             await sleep(0.1)
+
+    async def goto_page_with_url_containing(self, url_part):
+        pages = await self.browser.pages()
+        for page in pages:
+            if url_part in page.url:
+                await page.bringToFront()
+                return page
+        return None
+
+    async def copy_paste(self, page, text):
+        pyperclip.copy(text)
+
+        await page.keyboard.down("Control")
+        await page.keyboard.press("KeyV")
+        await page.keyboard.up("Control")
 
 
 async def main():
