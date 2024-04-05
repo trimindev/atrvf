@@ -1,12 +1,10 @@
 from tkinter import Tk
 from lib.data_manager import DataManager
 from lib.gologin_controller import GologinController
-from lib.browser_controller import BrowserController
+from lib.auto_pyppeteer_utils import goto_page_with_url_containing, pp_copy_paste
 from lib.video_utils import *
 from asyncio import sleep
-import pyperclip
 import re
-import pyperclip
 
 
 def is_valid_email(email):
@@ -30,12 +28,13 @@ class AutoFilm:
         self.dm.create_entry("Video Path:", "video_path", isBrowse=True)
 
         self.dm.create_button("Create Caption", self.create_caption, self.load_data)
-        self.dm.create_button("Create Video", self.auto_film, self.load_data)
+        # self.dm.create_button("Create Video", self.auto_film, self.load_data)
 
     def load_data(self):
         self.caption_path = self.dm.get_entry_data("caption_path")
         self.voice_folder_path = self.dm.get_entry_data("voice_folder_path")
         self.video_path = self.dm.get_entry_data("video_path")
+
         self.pass_vbee = "1abcdxyz2"
 
         self.gc = GologinController(
@@ -43,12 +42,10 @@ class AutoFilm:
         )
 
     async def create_caption(self):
-        await self.gc.delete_all_profiles()
-        await self.gc.create_gl_profile(auto_proxy=False)
-        await self.gc.connect_gl_profile(self.gc.gl_profile_id)
-
-        self.page = self.gc.page
-        self.browser = self.gc.browser
+        await self.gc.delete_all()
+        await self.gc.create(auto_proxy=False)
+        browser = await self.gc.connect(self.gc.gl_profile_id)
+        self.browser = browser
 
         await self.go_to_sign_in_page()
         await self.fill_sign_in()
@@ -60,6 +57,7 @@ class AutoFilm:
         # await self.gc.gl_stop()
 
     async def go_to_sign_in_page(self):
+        self.page = await self.browser.newPage()
         await self.page.goto(
             "https://temp-mail.org/vi", {"waitUntil": "domcontentloaded"}
         )
@@ -87,7 +85,9 @@ class AutoFilm:
         await sleep(1)
 
     async def fill_sign_in(self):
-        self.page = await self.gc.goto_page_with_url_containing("https://temp-mail.org")
+        self.page = await goto_page_with_url_containing(
+            self.browser, "https://temp-mail.org"
+        )
 
         email = None
         while email is None or not is_valid_email(email):
@@ -98,8 +98,8 @@ class AutoFilm:
         if not email:
             return False
 
-        self.page = await self.gc.goto_page_with_url_containing(
-            "https://accounts.vbee.ai/"
+        self.page = await goto_page_with_url_containing(
+            self.browser, "https://accounts.vbee.ai/"
         )
 
         await self.page.type("#email", email)
@@ -110,7 +110,9 @@ class AutoFilm:
         await login_btn.click()
 
     async def confirm_sign_in(self):
-        self.page = await self.gc.goto_page_with_url_containing("https://temp-mail.org")
+        self.page = await goto_page_with_url_containing(
+            self.browser, "https://temp-mail.org"
+        )
 
         link_confirm = await self.page.waitForSelector(
             "div.inbox-dataList > ul > li:nth-child(2) > div:nth-child(1) > a"
@@ -196,10 +198,7 @@ class AutoFilm:
         await enter_text_here.click()
         await sleep(0.5)
 
-        pyperclip.copy("Đây là câu thoại mẫu")
-        await self.page.keyboard.down("Control")
-        await self.page.keyboard.press("KeyV")
-        await self.page.keyboard.up("Control")
+        await pp_copy_paste(self.page, "Đây là câu thoại mẫu")
 
         generate_btn = await self.page.waitForSelector(".request-info > button")
         await generate_btn.click()

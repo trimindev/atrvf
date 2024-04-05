@@ -11,7 +11,7 @@ class GologinController:
         self.token = token
         self.gl = GoLogin({"token": self.token})
 
-    async def open(self, profile_id):
+    async def connect(self, profile_id):
         self.gl.setProfileId(profile_id)
         debugger_address = self.gl.start()
         browser = await connect(
