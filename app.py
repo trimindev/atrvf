@@ -2,7 +2,6 @@ from tkinter import Tk
 from lib.data_manager import DataManager
 from lib.browser_controller import BrowserController
 from lib.video_utils import *
-from multiprocessing import Process
 from asyncio import sleep
 import pyperclip
 import re
