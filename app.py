@@ -4,6 +4,7 @@ from lib.gologin_controller import GologinController
 from lib.auto_pyppeteer_utils import (
     goto_page_with_url_containing,
     pp_copy_paste,
+    pp_clear_input_field,
     allow_auto_download,
 )
 from lib.srt_utils import read_srt_file
@@ -34,7 +35,7 @@ class AutoFilm:
         self.dm.create_entry("Video Path:", "video_path", isBrowse=True)
 
         self.dm.create_button("Create Caption", self.create_caption, self.load_data)
-        self.dm.create_button("Print Caption File", self.print_srt_file, self.load_data)
+        # self.dm.create_button("Print Caption File", self.print_srt_file, self.load_data)
 
     def load_data(self):
         self.caption_path = self.dm.get_entry_data("caption_path")
@@ -46,12 +47,6 @@ class AutoFilm:
         self.gc = GologinController(
             token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
         )
-
-    async def print_srt_file(self):
-        subtitles = read_srt_file(self.caption_path)
-
-        for subtitle in subtitles:
-            print(subtitle["number"], subtitle["text"])
 
     async def create_caption(self):
         await self.gc.delete_all()
@@ -79,6 +74,10 @@ class AutoFilm:
         await allow_auto_download(self.page, self.voice_folder_path)
 
         await self.setup_vbee()
+
+        await self.setup_voice()
+
+        await self.generate_all_voice_vbee()
 
         await sleep(3000)
 
@@ -183,12 +182,10 @@ class AutoFilm:
         await skip_hightlight_to_listen.click()
         await sleep(0.5)
 
-        await self.setup_voice()
-
-        enter_text_here = await self.page.waitForSelector(
-            "#enter-text-here > div.editor-wrapper > div > div.DraftEditor-editorContainer > div > div"
+        content_editor = await self.page.waitForSelector(
+            ".DraftEditor-editorContainer > div > div"
         )
-        await enter_text_here.click()
+        await content_editor.click()
         await sleep(0.5)
 
         await pp_copy_paste(self.page, "Đây là câu thoại mẫu")
@@ -269,6 +266,34 @@ class AutoFilm:
         await speed_input.type("1.1")
         await self.page.keyboard.press("Enter")
         await sleep(0.5)
+
+    async def generate_voice_vbee(self, subtitle):
+        title_input = await self.page.waitForSelector(".input-wrapper")
+        await title_input.click()
+        await sleep(0.5)
+
+        await pp_clear_input_field(self.page)
+        await pp_copy_paste(self.page, str(subtitle["number"]) + subtitle["text"])
+
+        content_editor = await self.page.waitForSelector(
+            ".DraftEditor-editorContainer > div > div"
+        )
+        await content_editor.click()
+        await sleep(0.5)
+
+        await pp_clear_input_field(self.page)
+        await pp_copy_paste(self.page, subtitle["text"])
+
+        generate_btn = await self.page.waitForSelector(".request-info > button")
+        await generate_btn.click()
+        await sleep(0.5)
+
+    async def generate_all_voice_vbee(self):
+        subtitles = read_srt_file(self.caption_path)
+        for subtitle in subtitles:
+            print("generating")
+            await self.generate_voice_vbee(subtitle)
+        return
 
 
 def main():

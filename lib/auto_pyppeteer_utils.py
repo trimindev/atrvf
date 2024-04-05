@@ -57,6 +57,13 @@ async def pp_copy_paste(page, text):
     await page.keyboard.up("Control")
 
 
+async def pp_clear_input_field(page):
+    await page.keyboard.down("Control")
+    await page.keyboard.press("KeyA")
+    await page.keyboard.up("Control")
+    await page.keyboard.press("Delete")
+
+
 async def allow_auto_download(page, downloadPath):
     await page._client.send(
         "Page.setDownloadBehavior",
