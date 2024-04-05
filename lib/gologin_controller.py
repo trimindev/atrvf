@@ -9,18 +9,17 @@ class GologinController:
         token=None,
     ):
         self.token = token
-        self.browser = None
-        self.page = None
         self.gl = GoLogin({"token": self.token})
 
     async def open(self, profile_id):
         self.gl.setProfileId(profile_id)
         debugger_address = self.gl.start()
-        self.browser = await connect(
+        browser = await connect(
             browserURL="http://" + debugger_address, defaultViewport=None
         )
-        self.page = await self.browser.newPage()
-        await self.gl.normalizePageView(self.page)
+        # await self.gl.normalizePageView(page)
+
+        return browser
 
     async def create(self, auto_proxy=False, proxy=False):
         if auto_proxy and not proxy:
