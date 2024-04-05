@@ -1,4 +1,6 @@
 from tkinter import Tk
+
+import pyppeteer
 from lib.data_manager import DataManager
 from lib.gologin_controller import GologinController
 from lib.auto_pyppeteer_utils import (
@@ -23,6 +25,12 @@ def is_valid_email(email):
 class AutoFilm:
     def __init__(self, root):
 
+        self.pass_vbee = "1abcdxyz2"
+
+        self.gc = GologinController(
+            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
+        )
+
         # GUI --------------------------------------------------------------------
         self.root = root
         self.root.title("Atrvf")
@@ -35,19 +43,17 @@ class AutoFilm:
         )
         self.dm.create_entry("Video Path:", "video_path", isBrowse=True)
 
+        self.start_entry = self.dm.create_entry("Start at:", "start")
+        self.dm.create_entry("End at:", "end")
+
         self.dm.create_button("Create Caption", self.create_caption, self.load_data)
-        # self.dm.create_button("Print Caption File", self.print_srt_file, self.load_data)
 
     def load_data(self):
         self.caption_path = self.dm.get_entry_data("caption_path")
         self.voice_folder_path = self.dm.get_entry_data("voice_folder_path")
         self.video_path = self.dm.get_entry_data("video_path")
-
-        self.pass_vbee = "1abcdxyz2"
-
-        self.gc = GologinController(
-            token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
-        )
+        self.start = int(self.dm.get_entry_data("start"))
+        self.end = int(self.dm.get_entry_data("end"))
 
     async def create_caption(self):
         await self.gc.delete_all()
@@ -83,7 +89,7 @@ class AutoFilm:
 
         await self.generate_all_voice_vbee()
 
-        await sleep(3000)
+        # await sleep(3000)
 
         # await self.gc.gl_stop()
 
@@ -298,8 +304,36 @@ class AutoFilm:
 
     async def generate_all_voice_vbee(self):
         subtitles = read_srt_file(self.caption_path)
-        for subtitle in subtitles:
+
+        filtered_subtitles = [
+            subtitle
+            for subtitle in subtitles
+            if subtitle["number"] >= self.start and subtitle["number"] <= self.end
+        ]
+
+        for subtitle in filtered_subtitles:
             await self.generate_voice_vbee(subtitle)
+
+            self.start = subtitle["number"]
+
+            self.start_entry.insert(0, self.start)
+            self.dm.save_data_with_name("start", self.start)
+
+            try:
+                title_element = await self.page.waitForSelector(
+                    ".dialog-wrapper > .title", timeout=100
+                )
+                if title_element:
+                    title_text = await self.page.evaluate(
+                        "(element) => element.textContent.trim()", title_element
+                    )
+                    if title_text in ["Not Enough Characters", "Không đủ ký tự"]:
+                        print(f"last subtitle number: {self.start}")
+                        print(title_text)
+                        break
+            except pyppeteer.errors.TimeoutError:
+                pass
+
         return
 
 
