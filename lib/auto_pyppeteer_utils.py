@@ -49,6 +49,20 @@ async def goto_page_with_url_containing(browser, url_part):
     return None
 
 
+async def close_other_pages(browser, current_page):
+    # Get all pages in the browser
+    pages = await browser.pages()
+
+    other_pages = pages.copy()
+
+    # Iterate through each page
+    for page in other_pages:
+        # Check if the page is not the current page
+        if page != current_page:
+            # Close the page
+            await page.close()
+
+
 async def pp_copy_paste(page, text):
     pyperclip.copy(text)
 

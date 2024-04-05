@@ -6,6 +6,7 @@ from lib.auto_pyppeteer_utils import (
     pp_copy_paste,
     pp_clear_input_field,
     allow_auto_download,
+    close_other_pages,
 )
 from lib.srt_utils import read_srt_file
 from lib.video_utils import *
@@ -71,8 +72,8 @@ class AutoFilm:
         self.page = await self.browser.newPage()
         await self.page.goto(confirm_link_vbee)
 
-        with open("vbee_mail.txt", "w") as file:
-            file.write(temp_mail)
+        with open("vbee_mail.txt", "a") as file:
+            file.write(temp_mail + "\n")
 
         await allow_auto_download(self.page, self.voice_folder_path)
 
@@ -275,8 +276,9 @@ class AutoFilm:
         await title_input.click()
         await sleep(0.5)
 
+        limited_text = " ".join(subtitle["text"].split()[:5])
         await pp_clear_input_field(self.page)
-        await pp_copy_paste(self.page, str(subtitle["number"]) + subtitle["text"])
+        await pp_copy_paste(self.page, str(subtitle["number"]) + limited_text)
 
         content_editor = await self.page.waitForSelector(
             ".DraftEditor-editorContainer > div > div"
@@ -287,14 +289,16 @@ class AutoFilm:
         await pp_clear_input_field(self.page)
         await pp_copy_paste(self.page, subtitle["text"])
 
-        generate_btn = await self.page.waitForSelector(".request-info > button")
-        await generate_btn.click()
+        # generate_btn = await self.page.waitForSelector(".request-info > button")
+        # await generate_btn.click()
+        await self.page.evaluate(
+            'document.querySelector(".request-info > button").click();'
+        )
         await sleep(0.5)
 
     async def generate_all_voice_vbee(self):
         subtitles = read_srt_file(self.caption_path)
         for subtitle in subtitles:
-            print("generating")
             await self.generate_voice_vbee(subtitle)
         return
 
