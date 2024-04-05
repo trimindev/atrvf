@@ -42,7 +42,6 @@ class AutoFilm:
         self.video_path = self.dm.get_entry_data("video_path")
 
         self.pass_vbee = "1abcdxyz2"
-        self.temp_mail = None
 
         self.gc = GologinController(
             token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
