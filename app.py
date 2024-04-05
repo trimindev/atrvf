@@ -47,7 +47,7 @@ class AutoFilm:
             token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
         )
 
-    def print_srt_file(self):
+    async def print_srt_file(self):
         subtitles = read_srt_file(self.caption_path)
 
         for subtitle in subtitles:
