@@ -71,6 +71,9 @@ class AutoFilm:
         self.page = await self.browser.newPage()
         await self.page.goto(confirm_link_vbee)
 
+        with open("vbee_mail.txt", "w") as file:
+            file.write(temp_mail)
+
         await allow_auto_download(self.page, self.voice_folder_path)
 
         await self.setup_vbee()
@@ -220,12 +223,12 @@ class AutoFilm:
         await head_checkbox.click()
         await sleep(0.5)
 
-        # Click download selected
-        download_button = await self.page.waitForSelector(
-            ".MuiTableCell-root .download-button"
-        )
-        await download_button.click()
-        await sleep(0.5)
+        # # Click download selected
+        # download_button = await self.page.waitForSelector(
+        #     ".MuiTableCell-root .download-button"
+        # )
+        # await download_button.click()
+        # await sleep(0.5)
 
         # Click delete selected
         delete_selected_btn = await self.page.querySelector(
