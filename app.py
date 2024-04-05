@@ -252,28 +252,6 @@ class AutoFilm:
         await confirm_delete_yes_btn.click()
         await sleep(0.5)
 
-    async def sign_up_vbee(self):
-        await self.page.goto("https://studio.vbee.vn/studio/text-to-speech")
-
-        sign_up_btn = await self.page.waitForSelector(
-            'div.mobile-breakpoint\:flex > div > div[role="button"]'
-        )
-
-        await sign_up_btn.click()
-
-        ai_voice_studio = await self.page.waitForSelector(
-            "#dropdown.absolute > div > button:nth-child(2)"
-        )
-
-        await ai_voice_studio.click()
-
-        self.page = await self.bc.goto_page_with_url_containing(
-            "https://accounts.vbee.ai/"
-        )
-
-        self.page.type("#username", "vegih76838@comsb.com")
-        self.page.type("#password", self.pass_vbee)
-
     async def sign_in_vbee(self):
         await self.go_to_sign_in_page()
         await self.fill_sign_in()
