@@ -15,11 +15,9 @@ class BrowserController:
         self.executable_path = executable_path
         self.chrome_profile_path = chrome_profile_path
         self.download_path = download_path
-        self.browser = None
-        self.page = None
 
     async def initialize_browser(self):
-        self.browser = await launch(
+        browser = await launch(
             {
                 "executablePath": self.executable_path,
                 "userDataDir": self.chrome_profile_path,
@@ -31,7 +29,7 @@ class BrowserController:
             }
         )
 
-        self.page = await self.browser.newPage()
+        return browser
 
     async def click_img(self, img_path):
         result = await self.find_img(img_path, timeout=10)
