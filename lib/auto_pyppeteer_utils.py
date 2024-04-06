@@ -78,7 +78,7 @@ async def pp_clear_input_field(page):
     await page.keyboard.press("Delete")
 
 
-async def allow_auto_download(page, downloadPath):
+async def set_auto_download_behavior(page, downloadPath):
     await page._client.send(
         "Page.setDownloadBehavior",
         {

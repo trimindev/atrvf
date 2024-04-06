@@ -7,28 +7,23 @@ from lib.auto_pyppeteer_utils import (
     goto_page_with_url_containing,
     pp_copy_paste,
     pp_clear_input_field,
-    allow_auto_download,
+    set_auto_download_behavior,
 )
+from lib.text_utils import append_text_to_file, is_valid_email
 from lib.srt_utils import read_srt_file
 from lib.video_utils import *
 from asyncio import sleep
 
-import re
-
-
-def is_valid_email(email):
-    pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
-    return bool(re.match(pattern, email))
-
 
 class AutoFilm:
     def __init__(self, root):
-
-        self.pass_vbee = "1abcdxyz2"
-
         self.gc = GologinController(
             token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTk3OWJkMGViOWU2M2YzNDcwZDU5MjMiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2NTlkMmQwOTc3NDJjNTdiYTg1ZWJkNzUifQ.gXbYZNg6NqNNTm301zzlg7cjsBedsB7hCadje8jzq8s",
         )
+
+        self.pass_vbee = "1abcdxyz2"
+        self.start = None
+        self.end = None
 
         # GUI --------------------------------------------------------------------
         self.root = root
@@ -45,7 +40,9 @@ class AutoFilm:
         self.start_entry = self.dm.create_entry("Start at:", "start")
         self.dm.create_entry("End at:", "end")
 
-        self.dm.create_button("Create Caption", self.create_caption, self.load_data)
+        self.dm.create_button(
+            "Create Caption", self.generate_and_download_vbee_captions, self.load_data
+        )
 
     def load_data(self):
         self.caption_path = self.dm.get_entry_data("caption_path")
@@ -54,40 +51,31 @@ class AutoFilm:
         self.start = int(self.dm.get_entry_data("start"))
         self.end = int(self.dm.get_entry_data("end"))
 
-    async def create_caption(self):
-        await self.gc.delete_all()
-        await self.gc.create(auto_proxy=False)
-        browser = await self.gc.connect(self.gc.gl_profile_id)
-        self.browser = browser
+    async def generate_and_download_vbee_captions(self):
+        await self.reset_gologin_and_open_new_profile()
 
-        # Go to temp-mail to load mail then comeback and get it
-        self.page = await self.browser.newPage()
-        await self.page.goto(
-            "https://temp-mail.org/vi", {"waitUntil": "domcontentloaded"}
-        )
+        await self.load_temp_mail_page()
 
-        await self.goto_sign_in_vbee()
+        await self.navigate_to_vbee_sign_in()
 
         temp_mail = await self.get_temp_mail()
 
-        await self.fill_sign_in_vbee(temp_mail)
+        await self.fill_vbee_sign_in_form(temp_mail, self.pass_vbee)
 
-        confirm_link_vbee = await self.get_confirm_link_vbee()
+        vbee_confirm_link = await self.fetch_vbee_confirm_link()
 
         self.page = await self.browser.newPage()
-        await self.page.goto(confirm_link_vbee)
+        await self.page.goto(vbee_confirm_link)
 
-        with open("vbee_mail.txt", "a") as file:
-            file.write(temp_mail + "\n")
+        append_text_to_file("vbee_mail.txt", temp_mail)
 
-        await allow_auto_download(self.page, self.voice_folder_path)
+        await set_auto_download_behavior(self.page, self.voice_folder_path)
 
-        await self.setup_vbee()
-
+        await self.setup_initial_sign_in()
         await self.setup_voice()
 
-        await self.generate_all_voice_vbee()
-
+        subtitles = read_srt_file(self.caption_path)
+        await self.generate_all_subtitle_voices(subtitles)
         await self.choose_all_voice()
         await self.click_download_voice()
         await self.click_delete_all_voice()
@@ -96,7 +84,17 @@ class AutoFilm:
 
         # await self.gc.gl_stop()
 
-    async def goto_sign_in_vbee(self):
+    async def reset_gologin_and_open_new_profile(self):
+        await self.gc.delete_all()
+        await self.gc.create(auto_proxy=False)
+        browser = await self.gc.connect(self.gc.gl_profile_id)
+        self.browser = browser
+
+    async def load_temp_mail_page(self):
+        self.page = await self.browser.newPage()
+        await self.page.goto("https://temp-mail.org/vi")
+
+    async def navigate_to_vbee_sign_in(self):
         self.page = await self.browser.newPage()
         await self.page.goto("https://studio.vbee.vn/studio/text-to-speech")
         await sleep(2)
@@ -131,19 +129,19 @@ class AutoFilm:
 
         return email
 
-    async def fill_sign_in_vbee(self, temp_mail):
+    async def fill_vbee_sign_in_form(self, email, password):
         self.page = await goto_page_with_url_containing(
             self.browser, "https://accounts.vbee.ai/"
         )
 
-        await self.page.type("#email", temp_mail)
-        await self.page.type("#password", self.pass_vbee)
-        await self.page.type("#passwordConfirm", self.pass_vbee)
+        await self.page.type("#email", email)
+        await self.page.type("#password", password)
+        await self.page.type("#passwordConfirm", password)
 
         login_btn = await self.page.waitForSelector('button[name="login"]')
         await login_btn.click()
 
-    async def get_confirm_link_vbee(self):
+    async def fetch_vbee_confirm_link(self):
         self.page = await goto_page_with_url_containing(
             self.browser, "https://temp-mail.org"
         )
@@ -156,13 +154,13 @@ class AutoFilm:
         confirm_btn = await self.page.waitForSelector(
             "div.inbox-data-content > div.inbox-data-content-intro > div > div > div:nth-child(2) > a"
         )
-        confirm_link_vbee = await self.page.evaluate(
+        vbee_confirm_link = await self.page.evaluate(
             '(element) => element.getAttribute("href")', confirm_btn
         )
 
-        return confirm_link_vbee
+        return vbee_confirm_link
 
-    async def setup_vbee(self):
+    async def close_initial_popups_on_sign_in(self):
         readed_checkbox = await self.page.waitForSelector(
             "div.dialog-checkbox > span > input"
         )
@@ -195,27 +193,25 @@ class AutoFilm:
         await skip_hightlight_to_listen.click()
         await sleep(0.5)
 
-        content_editor = await self.page.waitForSelector(
-            ".DraftEditor-editorContainer > div > div"
-        )
-        await content_editor.click()
-        await sleep(0.5)
+    async def setup_initial_sign_in(self):
+        await self.close_initial_popups_on_sign_in()
 
-        await pp_copy_paste(self.page, "Đây là câu thoại mẫu")
+        await self.paste_text_into_editor("demo")
+        await self.click_generate_voice()
 
-        generate_btn = await self.page.waitForSelector(".request-info > button")
-        await generate_btn.click()
-        await sleep(0.5)
-
-        close_ad_button = await self.page.waitForSelector(
-            ".dialog-content > h2 > button"
-        )
-        await close_ad_button.click()
-        await sleep(0.5)
-
+        await self.close_popup_during_generation()
         await self.expand_download_tab()
         await self.choose_all_voice()
         await self.click_delete_all_voice()
+
+        return
+
+    async def close_popup_during_generation(self):
+        close_popup_btn = await self.page.waitForSelector(
+            ".dialog-content > h2 > button"
+        )
+        await close_popup_btn.click()
+        await sleep(0.5)
 
     async def setup_voice(self):
         # Click choose voice
@@ -243,15 +239,22 @@ class AutoFilm:
         await self.page.keyboard.press("Enter")
         await sleep(0.5)
 
-    async def generate_voice_vbee(self, subtitle):
+    async def paste_text_into_title(self, text, number):
         title_input = await self.page.waitForSelector(".input-wrapper")
         await title_input.click()
         await sleep(0.5)
 
-        limited_text = " ".join(subtitle["text"].split()[:5])
+        limited_text = " ".join(text.split()[:5])
         await pp_clear_input_field(self.page)
-        await pp_copy_paste(self.page, str(subtitle["number"]) + limited_text)
+        await pp_copy_paste(self.page, str(number) + limited_text)
 
+    async def click_generate_voice(self):
+        await self.page.evaluate(
+            'document.querySelector(".request-info > button").click();'
+        )
+        await sleep(0.5)
+
+    async def paste_text_into_editor(self, text):
         content_editor = await self.page.waitForSelector(
             ".DraftEditor-editorContainer > div > div"
         )
@@ -259,45 +262,43 @@ class AutoFilm:
         await sleep(0.5)
 
         await pp_clear_input_field(self.page)
-        await pp_copy_paste(self.page, subtitle["text"])
+        await pp_copy_paste(self.page, text)
 
-        # generate_btn = await self.page.waitForSelector(".request-info > button")
-        # await generate_btn.click()
-        await self.page.evaluate(
-            'document.querySelector(".request-info > button").click();'
+    async def generate_all_subtitle_voices(self, subtitles):
+        filtered_subtitles = self.filter_subtitles_by_range(
+            subtitles, self.start, self.end
         )
-        await sleep(0.5)
-
-    async def generate_all_voice_vbee(self):
-        subtitles = read_srt_file(self.caption_path)
-
-        filtered_subtitles = [
-            subtitle
-            for subtitle in subtitles
-            if subtitle["number"] >= self.start and subtitle["number"] <= self.end
-        ]
-
         for subtitle in filtered_subtitles:
+            await self.generate_subtitle_voice(subtitle)
+            if await self.is_not_enough_characters_popup_displayed():
+                break
 
-            await self.generate_voice_vbee(subtitle)
+    async def generate_subtitle_voice(self, subtitle):
 
-            self.start = subtitle["number"]
-            self.dm.save_data_with_name("start", self.start)
+        await self.paste_text_into_title(subtitle["text"], subtitle["number"])
 
-            try:
-                title_element = await self.page.waitForSelector(
-                    ".dialog-wrapper > .title", timeout=100
+        await self.paste_text_into_editor(subtitle["text"])
+
+        await self.click_generate_voice()
+
+    async def is_not_enough_characters_popup_displayed(self):
+        try:
+            title_element = await self.page.waitForSelector(
+                ".dialog-wrapper > .title", timeout=100
+            )
+            if title_element:
+                title_text = await self.page.evaluate(
+                    "(element) => element.textContent.trim()", title_element
                 )
-                if title_element:
-                    title_text = await self.page.evaluate(
-                        "(element) => element.textContent.trim()", title_element
-                    )
-                    if title_text in ["Not Enough Characters", "Không đủ ký tự"]:
-                        break
-            except pyppeteer.errors.TimeoutError:
-                pass
+                return title_text in ["Not Enough Characters", "Không đủ ký tự"]
+        except pyppeteer.errors.TimeoutError:
+            pass
+        return False
 
-        return
+    async def filter_subtitles_by_range(self, subtitles, start, end):
+        return [
+            subtitle for subtitle in subtitles if start <= subtitle["number"] <= end
+        ]
 
     async def click_delete_all_voice(self):
         delete_all_btn = await self.page.waitForSelector(
@@ -311,7 +312,7 @@ class AutoFilm:
         return
 
     async def choose_all_voice(self):
-        await self.wait_all_voice_generated()
+        await self.await_voice_generation_completion()
 
         while True:
             try:
@@ -351,7 +352,7 @@ class AutoFilm:
         await download_btn.click()
         return
 
-    async def wait_all_voice_generated(self):
+    async def await_voice_generation_completion(self):
         await self.page.waitForSelector(".request-info > .MuiTypography-body1")
         return
 
