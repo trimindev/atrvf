@@ -8,7 +8,6 @@ from lib.auto_pyppeteer_utils import (
     pp_copy_paste,
     pp_clear_input_field,
     allow_auto_download,
-    close_other_pages,
 )
 from lib.srt_utils import read_srt_file
 from lib.video_utils import *
@@ -88,6 +87,10 @@ class AutoFilm:
         await self.setup_voice()
 
         await self.generate_all_voice_vbee()
+
+        await self.choose_all_voice()
+        await self.click_download_voice()
+        await self.click_delete_all_voice()
 
         # await sleep(3000)
 
@@ -169,7 +172,7 @@ class AutoFilm:
         await continue_btn.click()
 
         dont_show_again_btn = await self.page.waitForSelector(
-            "div.not-show-again > label > span > input"
+            ".not-show-again > label > span > input"
         )
         await dont_show_again_btn.click()
         await sleep(0.5)
@@ -210,46 +213,9 @@ class AutoFilm:
         await close_ad_button.click()
         await sleep(0.5)
 
-        await self.page.waitForSelector(".request-info > .MuiTypography-body1")
-        await sleep(0.5)
-
-        # If find expand icon then click
-        expand_icon = await self.page.querySelector(
-            'button > [data-testid="KeyboardArrowDownIcon"]'
-        )
-        if expand_icon:
-            await expand_icon.click()
-            await sleep(0.5)
-        else:
-            pass
-
-        # Click checkbox of head row to select voices
-        head_checkbox = await self.page.querySelector(
-            ".MuiCheckbox-root > .PrivateSwitchBase-input"
-        )
-        await head_checkbox.click()
-        await sleep(0.5)
-
-        # # Click download selected
-        # download_button = await self.page.waitForSelector(
-        #     ".MuiTableCell-root .download-button"
-        # )
-        # await download_button.click()
-        # await sleep(0.5)
-
-        # Click delete selected
-        delete_selected_btn = await self.page.querySelector(
-            ".MuiTableCell-root .delete-button"
-        )
-        await delete_selected_btn.click()
-        await sleep(0.5)
-
-        # Click confirm delete yes
-        confirm_delete_yes_btn = await self.page.querySelector(
-            ".content > div > button.MuiButton-containedPrimary"
-        )
-        await confirm_delete_yes_btn.click()
-        await sleep(0.5)
+        await self.expand_download_tab()
+        await self.choose_all_voice()
+        await self.click_delete_all_voice()
 
     async def setup_voice(self):
         # Click choose voice
@@ -312,11 +278,10 @@ class AutoFilm:
         ]
 
         for subtitle in filtered_subtitles:
+
             await self.generate_voice_vbee(subtitle)
 
             self.start = subtitle["number"]
-
-            self.start_entry.insert(0, self.start)
             self.dm.save_data_with_name("start", self.start)
 
             try:
@@ -328,12 +293,66 @@ class AutoFilm:
                         "(element) => element.textContent.trim()", title_element
                     )
                     if title_text in ["Not Enough Characters", "Không đủ ký tự"]:
-                        print(f"last subtitle number: {self.start}")
-                        print(title_text)
                         break
             except pyppeteer.errors.TimeoutError:
                 pass
 
+        return
+
+    async def click_delete_all_voice(self):
+        delete_all_btn = await self.page.waitForSelector(
+            ".MuiTableCell-root .delete-button:nth-child(2)"
+        )
+        await delete_all_btn.click()
+
+        confirm_yes_btn = await self.page.waitForSelector(".content button")
+        await confirm_yes_btn.click()
+
+        return
+
+    async def choose_all_voice(self):
+        await self.wait_all_voice_generated()
+
+        while True:
+            try:
+                # Wait for the next button and header checkbox
+                next_page_btn = await self.page.waitForSelector(
+                    'button[aria-label="Go to next page"]:not([disabled])', timeout=100
+                )
+                header_checkbox = await self.page.waitForSelector(
+                    ".header-checkbox .PrivateSwitchBase-input"
+                )
+
+                # Click on the header checkbox and the next button
+                await header_checkbox.click()
+                await next_page_btn.click()
+            except pyppeteer.errors.TimeoutError:
+                print("Next page button is disabled.")
+                break
+
+            return
+
+    async def expand_download_tab(self):
+        expand_icon = await self.page.querySelector(
+            'button > [data-testid="KeyboardArrowDownIcon"]'
+        )
+        if expand_icon:
+            await expand_icon.click()
+            await sleep(0.5)
+        else:
+            pass
+
+        return
+
+    async def click_download_voice(self):
+        download_btn = await self.page.waitForSelector(
+            ".MuiTableCell-root .download-button"
+        )
+        await download_btn.click()
+        return
+
+    async def wait_all_voice_generated(self):
+        await self.page.waitForSelector(".request-info > .MuiTypography-body1")
         return
 
 
