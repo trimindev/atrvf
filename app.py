@@ -92,7 +92,7 @@ class AutoFilm:
 
     async def load_temp_mail_page(self):
         self.page = await self.browser.newPage()
-        await self.page.goto("https://temp-mail.org/vi")
+        await self.page.goto("https://temp-mail.org/vi", waitUntil="domcontentloaded")
 
     async def navigate_to_vbee_sign_in(self):
         self.page = await self.browser.newPage()
