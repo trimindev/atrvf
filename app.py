@@ -280,6 +280,7 @@ class AutoFilm:
                 return title_text in ["Not Enough Characters", "Không đủ ký tự"]
         except pyppeteer.errors.TimeoutError:
             pass
+
         return False
 
     async def filter_subtitles_by_range(self, subtitles, start, end):
@@ -302,23 +303,14 @@ class AutoFilm:
         await self.await_voice_generation_completion()
 
         while True:
-            try:
-                # Wait for the next button and header checkbox
-                next_page_btn = await self.page.waitForSelector(
-                    'button[aria-label="Go to next page"]:not([disabled])', timeout=100
-                )
-                header_checkbox = await self.page.waitForSelector(
-                    ".header-checkbox .PrivateSwitchBase-input"
-                )
+            header_checkbox = ".header-checkbox .PrivateSwitchBase-input"
+            await click_selector(self.page, header_checkbox)
 
-                # Click on the header checkbox and the next button
-                await header_checkbox.click()
-                await next_page_btn.click()
-            except pyppeteer.errors.TimeoutError:
-                print("Next page button is disabled.")
+            next_page_btn = 'button[aria-label="Go to next page"]:not([disabled])'
+            if not (await click_selector(self.page, next_page_btn, 0.1)):
                 break
 
-            return
+        return
 
     async def expand_download_tab(self):
         expand_icon = await self.page.querySelector(
