@@ -8,6 +8,7 @@ from lib.auto_pyppeteer_utils import (
     pp_copy_paste,
     pp_clear_input_field,
     set_auto_download_behavior,
+    click_selector,
 )
 from lib.text_utils import append_text_to_file, is_valid_email
 from lib.srt_utils import read_srt_file
@@ -161,37 +162,23 @@ class AutoFilm:
         return vbee_confirm_link
 
     async def close_initial_popups_on_sign_in(self):
-        readed_checkbox = await self.page.waitForSelector(
-            "div.dialog-checkbox > span > input"
-        )
-        await readed_checkbox.click()
+        agree_btn = ".dialog-checkbox input"
+        await click_selector(self.page, agree_btn, 2)
 
-        continue_btn = await self.page.waitForSelector("div.dialog-action > button")
-        await continue_btn.click()
+        continue_btn = ".dialog-action > button"
+        await click_selector(self.page, continue_btn, 2)
 
-        dont_show_again_btn = await self.page.waitForSelector(
-            ".not-show-again > label > span > input"
-        )
-        await dont_show_again_btn.click()
-        await sleep(0.5)
+        dont_show_again_btn = ".not-show-again input"
+        await click_selector(self.page, dont_show_again_btn, 2)
 
-        close_ad_btn = await self.page.waitForSelector(
-            "div.MuiDialogContent-root > button"
-        )
-        await close_ad_btn.click()
-        await sleep(0.5)
+        close_ad_btn = ".MuiDialogContent-root > button"
+        await click_selector(self.page, close_ad_btn, 2)
 
-        skip_enter_text_btn = await self.page.waitForSelector(
-            "#react-joyride-step-0 > div > div > div > div > button > div > div"
-        )
-        await skip_enter_text_btn.click()
-        await sleep(0.5)
+        skip_enter_text_btn = ".button-back"
+        await click_selector(self.page, skip_enter_text_btn, 2)
 
-        skip_hightlight_to_listen = await self.page.waitForSelector(
-            "p.MuiTypography-root.MuiTypography-body1.ignore-text"
-        )
-        await skip_hightlight_to_listen.click()
-        await sleep(0.5)
+        skip_hightlight_to_listen_btn = ".ignore-text"
+        await click_selector(self.page, skip_hightlight_to_listen_btn, 2)
 
     async def setup_initial_sign_in(self):
         await self.close_initial_popups_on_sign_in()

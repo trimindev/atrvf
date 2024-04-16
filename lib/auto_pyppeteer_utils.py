@@ -1,6 +1,6 @@
 import cv2
-from asyncio import sleep
-import pyperclip
+from asyncio import sleep, wait_for, TimeoutError
+import pyperclip, pyppeteer
 from time import time
 
 
@@ -87,3 +87,14 @@ async def set_auto_download_behavior(page, downloadPath):
             "downloadPath": downloadPath,
         },
     )
+
+
+async def click_selector(page, selector, timeout=15, sleep=0.5):
+    try:
+        element = await page.waitForSelector(selector)
+        await element.click()
+        await sleep(sleep)
+        return True
+    except pyppeteer.errors.TimeoutError:
+        print(f"Selector {selector} not found after {timeout} seconds. Skipping.")
+        return False
